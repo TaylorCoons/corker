@@ -5,10 +5,28 @@ import re
 import copy
 
 
+class Keyword:
+    
+    name = None
+    keyword = None
+    
+    def __init__(self, name, keyword):
+        self.name = name
+        self.keyword = keyword
+
+    def __repr__(self):
+        return 'Keyword()'
+    
+    def __str__(self):
+        return '{}\t{}'.format(self.name, self.keyword)
+
+
 class ObjectType:
+    
     objType = None
     objName = None
     state = None
+    
     def __init__(self, objType, objName, state):
         self.objType = objType
         self.objName = objName
@@ -38,8 +56,10 @@ class ObjectType:
 
 
 class State:
+    
     visibility = None
     scope = None
+    
     def __init__(self, visibility, scope):
         self.visibility = visibility
         self.scope = scope
@@ -63,6 +83,7 @@ class State:
            ):
             return True
         return False
+
 
 class Parser:
     def is_object(self, token):
@@ -151,6 +172,7 @@ class Parser:
                     objects.append(ObjectType(token, tokens[i + 1], state))
                     state_stack.append(State(state.visibility, token))
                     i = i + self.skip_to_token(tokens, i, '{')
+
             if self.is_visibility(token):
                 state_stack[-1].visibility = token
         
@@ -182,13 +204,28 @@ class Parser:
 
         return objects
 
-    
+
+    def filter_objects(self, objects, flags):
+        # TODO: Impliment
+        return objects   
+
+     
     def skip_to_token(self, tokens, currIndex, token):
         for j in range(currIndex, len(tokens)):
             if tokens[j] == token:
                 break
         return j - currIndex
 
+    def generate_keywords(self, objects):
+        keywords = [] 
+        for obj in objects:
+            if self.is_object(obj.objType) or self.is_enum(obj.objType):
+                keywords.append(Keyword(obj.objName, 'KEYWORD1'))
+            if obj.objType == 'function':
+                keywords.append(Keyword(obj.objName, 'KEYWORD2'))
+            if obj.objType == 'literal':
+                keywords.append(Keyword(obj.objName, 'LITERAL1')) 
+        return keywords
 
     def parse(self, fileName):
         try:
@@ -199,8 +236,26 @@ class Parser:
 
         tokens = self.tokenize(f.read())
         objects = self.process(tokens)
-    
+        objects = self.filter_objects(objects, None) 
+        keywords = self.generate_keywords(objects)
         for obj in objects:
             print(obj)
+
+        for keyword in keywords:
+            print(keyword)
+
+        self.write_keywords('KEYWORDS.txt', keywords)
+
+        f.close()
         
+    def write_keywords(self, fileName, keywords):
+        try:
+            f = open(fileName, 'w')
+        except IOError as e:
+            print(e)
+            return
         
+        for keyword in keywords:
+            f.write('{}\n'.format(str(keyword)))
+
+        f.close() 
