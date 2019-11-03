@@ -3,9 +3,16 @@
 
 #include <stuff>
 
+
+const int globalConst = 8;
+const int globalLiteral = 8;
+extern const double literalNoSpace=1;
+
 void globalFuncDec(int arg1, int arg2);
 
 class TestClass {
+    const int classLiteral = 3;
+    const int classLiteralNoSpace=2;
     struct defaultSpecifier {
         int x;
         int y;

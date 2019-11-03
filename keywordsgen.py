@@ -48,7 +48,7 @@ class State:
     def __repr__(self):
         return 'State()'
 
-    
+ 
     def __str__(self):
         return '<{}, {}>'.format(
             self.visibility,
@@ -68,28 +68,35 @@ class Parser:
     def is_object(self, token):
         objects = ['class', 'struct']
         if token in objects:
-            return token
-        return None
+            return True
+        return False
+
 
     def is_enum(self, token):
         if token == 'enum':
-            return token
-        return None
+            return True
+        return False
 
-    
+ 
     def is_visibility(self, token):
-        visibilities = ['public:', 'private:', 'protected:']
+        visibilities = [ 'public:', 'private:', 'protected:' ]
         if token in visibilities:
-            return token
-        return None
+            return True
+        return False
 
-    
+
+    def is_literal(self, token):
+        if token == 'const':
+            return True
+        return False
+
+ 
     def is_function(self, token):
         if token == '(':
-            return token
-        return None
+            return True
+        return False
 
-    
+ 
     def is_duplicate_object(self, objects, potObj):
         for obj in objects:
             if obj == potObj:
@@ -97,17 +104,16 @@ class Parser:
         return False
 
 
-    def tokenize(self, f):
-        contents = f.read()
+    def tokenize(self, contents):
         
         whitespaces = ['\t', '\n', '\v', '\f', '\r']
         for char in whitespaces:
             contents = contents.replace(char, ' ')
         
-        organizingTokens = ['{', '}', '(', ')']
-        for char in organizingTokens:
+        specialTokens = ['{', '}', '(', ')', '=']
+        for char in specialTokens:
             contents = contents.replace(char, ' {} '.format(char))
-        
+       
         while '  ' in contents:
             contents = contents.replace('  ', ' ')
 
@@ -129,33 +135,29 @@ class Parser:
             print('state_stack: {}'.format(s))
             state = state_stack[-1]
             token = tokens[i]
-            obj = self.is_object(token)
-            enum = self.is_enum(token)
-            visibility = self.is_visibility(token)
-            function = self.is_function(token)
-            if obj:
+            if self.is_object(token):
                 if state.scope == 'global' or state.scope == 'class' or state.scope == 'struct':
                     print('Appending Object: {} with state {}: '.format(tokens[i + 1], state))
                     objects.append(ObjectType(token, tokens[i + 1], copy.deepcopy(state))) 
-                    if obj == 'class':
+                    if token == 'class':
                         vis = 'private:'
-                    elif obj == 'struct':
+                    elif token == 'struct':
                         vis = 'public:'
-                    print('Appending State: {}'.format(State(vis, obj)))
-                    state_stack.append(State(vis, obj))
+                    print('Appending State: {}'.format(State(vis, token)))
+                    state_stack.append(State(vis, token))
                     i = i + self.skip_to_token(tokens, i, '{') 
-            if enum:
+            if self.is_enum(token):
                 if state.scope == 'global' or state.scope == 'class' or state.scope == 'struct':
                     objects.append(ObjectType(token, tokens[i + 1], state))
-                    state_stack.append(State(state.visibility, enum))
+                    state_stack.append(State(state.visibility, token))
                     i = i + self.skip_to_token(tokens, i, '{')
-            if visibility:
-                state_stack[-1].visibility = visibility
+            if self.is_visibility(token):
+                state_stack[-1].visibility = token
         
-            if function:
-                potObj = ObjectType('function', tokens[i - 1], copy.deepcopy(state))
-                if not self.is_duplicate_object(objects, potObj):
-                    objects.append(potObj)
+            if self.is_function(token):
+                obj = ObjectType('function', tokens[i - 1], copy.deepcopy(state))
+                if not self.is_duplicate_object(objects, obj):
+                    objects.append(obj)
                 
                 i = i + self.skip_to_token(tokens, i, ')')
                 # Check if inline function by looking for brace
@@ -165,15 +167,20 @@ class Parser:
                     i = i + self.skip_to_token(tokens, i, '}')
                     # Skip the last brace if not last token
                     if i != len(tokens) - 1:
-                        i = i + 1 
+                        i = i + 1
+
+            if self.is_literal(token):
+                # get variable name by looking at token before assignment
+                # this is only valid since all literals must be assigned in c
+                i = i + self.skip_to_token(tokens, i, '=') - 1
+                objects.append(ObjectType('literal', tokens[i], copy.deepcopy(state)))
 
             if token == '}':
                 state_stack.pop()
             
             i = i + 1
 
-        for obj in objects:
-            print(obj)
+        return objects
 
     
     def skip_to_token(self, tokens, currIndex, token):
@@ -189,14 +196,11 @@ class Parser:
         except IOError as e:
             print(e)
             return
+
+        tokens = self.tokenize(f.read())
+        objects = self.process(tokens)
+    
+        for obj in objects:
+            print(obj)
         
-        tokens = self.tokenize(f)
-        print('Tokens: ')
-        print('-------------------------------------------')
-        print(tokens)
-        self.process(tokens) 
-
-
-
-
         
