@@ -86,6 +86,9 @@ class State:
 
 
 class Parser:
+
+    keywords = []
+
     def is_object(self, token):
         objects = ['class', 'struct']
         if token in objects:
@@ -149,22 +152,15 @@ class Parser:
         objects = []
         i = 0
         while i < len(tokens):
-            print('token, {}'.format(tokens[i]))
-            s = ""
-            for state in state_stack:
-                s = s + str(state)
-            print('state_stack: {}'.format(s))
             state = state_stack[-1]
             token = tokens[i]
             if self.is_object(token):
                 if state.scope == 'global' or state.scope == 'class' or state.scope == 'struct':
-                    print('Appending Object: {} with state {}: '.format(tokens[i + 1], state))
                     objects.append(ObjectType(token, tokens[i + 1], copy.deepcopy(state))) 
                     if token == 'class':
                         vis = 'private:'
                     elif token == 'struct':
                         vis = 'public:'
-                    print('Appending State: {}'.format(State(vis, token)))
                     state_stack.append(State(vis, token))
                     i = i + self.skip_to_token(tokens, i, '{') 
             if self.is_enum(token):
@@ -216,6 +212,7 @@ class Parser:
                 break
         return j - currIndex
 
+
     def generate_keywords(self, objects):
         keywords = [] 
         for obj in objects:
@@ -227,6 +224,7 @@ class Parser:
                 keywords.append(Keyword(obj.objName, 'LITERAL1')) 
         return keywords
 
+
     def parse(self, fileName):
         try:
             f = open(fileName, 'r')
@@ -237,25 +235,18 @@ class Parser:
         tokens = self.tokenize(f.read())
         objects = self.process(tokens)
         objects = self.filter_objects(objects, None) 
-        keywords = self.generate_keywords(objects)
-        for obj in objects:
-            print(obj)
-
-        for keyword in keywords:
-            print(keyword)
-
-        self.write_keywords('KEYWORDS.txt', keywords)
+        self.keywords = self.generate_keywords(objects)
 
         f.close()
         
-    def write_keywords(self, fileName, keywords):
+    def write_keywords(self, fileName):
         try:
             f = open(fileName, 'w')
         except IOError as e:
             print(e)
             return
         
-        for keyword in keywords:
+        for keyword in self.keywords:
             f.write('{}\n'.format(str(keyword)))
 
         f.close() 
