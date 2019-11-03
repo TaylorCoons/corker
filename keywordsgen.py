@@ -26,6 +26,16 @@ class ObjectType:
             self.state
         )
 
+    
+    def __eq__(self, other):
+        if (
+            self.objType == other.objType
+            and self.objName == other.objName
+            and self.state == other.state
+           ):
+            return True
+        return False
+
 
 class State:
     visibility = None
@@ -33,6 +43,7 @@ class State:
     def __init__(self, visibility, scope):
         self.visibility = visibility
         self.scope = scope
+
 
     def __repr__(self):
         return 'State()'
@@ -44,6 +55,14 @@ class State:
             self.scope,
         )
 
+
+    def __eq__(self, other):
+        if (
+            self.visibility == other.visibility
+            and self.scope == other.scope
+           ):
+            return True
+        return False
 
 class Parser:
     def is_object(self, token):
@@ -64,6 +83,19 @@ class Parser:
             return token
         return None
 
+    
+    def is_function(self, token):
+        if token == '(':
+            return token
+        return None
+
+    
+    def is_duplicate_object(self, objects, potObj):
+        for obj in objects:
+            if obj == potObj:
+                return True
+        return False
+
 
     def tokenize(self, f):
         contents = f.read()
@@ -71,6 +103,10 @@ class Parser:
         whitespaces = ['\t', '\n', '\v', '\f', '\r']
         for char in whitespaces:
             contents = contents.replace(char, ' ')
+        
+        organizingTokens = ['{', '}', '(', ')']
+        for char in organizingTokens:
+            contents = contents.replace(char, ' {} '.format(char))
         
         while '  ' in contents:
             contents = contents.replace('  ', ' ')
@@ -84,7 +120,8 @@ class Parser:
         state_stack = []
         state_stack.append(State('none', 'global'))
         objects = []
-        for i in range(len(tokens)):
+        i = 0
+        while i < len(tokens):
             print('token, {}'.format(tokens[i]))
             s = ""
             for state in state_stack:
@@ -95,6 +132,7 @@ class Parser:
             obj = self.is_object(token)
             enum = self.is_enum(token)
             visibility = self.is_visibility(token)
+            function = self.is_function(token)
             if obj:
                 if state.scope == 'global' or state.scope == 'class' or state.scope == 'struct':
                     print('Appending Object: {} with state {}: '.format(tokens[i + 1], state))
@@ -105,17 +143,34 @@ class Parser:
                         vis = 'public:'
                     print('Appending State: {}'.format(State(vis, obj)))
                     state_stack.append(State(vis, obj))
-                    i = self.skip_to_token(tokens, i, '{')  
+                    i = i + self.skip_to_token(tokens, i, '{') 
             if enum:
                 if state.scope == 'global' or state.scope == 'class' or state.scope == 'struct':
                     objects.append(ObjectType(token, tokens[i + 1], state))
                     state_stack.append(State(state.visibility, enum))
-                    i = self.skip_to_token(tokens, i, '{')
+                    i = i + self.skip_to_token(tokens, i, '{')
             if visibility:
-                state_stack[-1].visibility = visibility 
+                state_stack[-1].visibility = visibility
+        
+            if function:
+                potObj = ObjectType('function', tokens[i - 1], copy.deepcopy(state))
+                if not self.is_duplicate_object(objects, potObj):
+                    objects.append(potObj)
+                
+                i = i + self.skip_to_token(tokens, i, ')')
+                # Check if inline function by looking for brace
+                # i + 2 required to check if static modifier included after function
+                if tokens[i + 1] == '{' or tokens[i + 2] == '{':
+                    # If inline function skip the entire function
+                    i = i + self.skip_to_token(tokens, i, '}')
+                    # Skip the last brace if not last token
+                    if i != len(tokens) - 1:
+                        i = i + 1 
 
-            if token == '}' or token == '};':
+            if token == '}':
                 state_stack.pop()
+            
+            i = i + 1
 
         for obj in objects:
             print(obj)

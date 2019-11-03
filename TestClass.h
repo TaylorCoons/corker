@@ -3,6 +3,8 @@
 
 #include <stuff>
 
+void globalFuncDec(int arg1, int arg2);
+
 class TestClass {
     struct defaultSpecifier {
         int x;
@@ -28,6 +30,9 @@ class TestClass {
     class emptyClass { };
     
     public:
+    void publicFunction(int x, int y);
+    void publicFunctionNoArgs();
+
     struct publicStruct{ 
         int x;
         int y;
@@ -36,14 +41,30 @@ class TestClass {
         int x;
         int y;
     };
-    
+    private:
+    void privateFunction(int x, int y);
+    void privateFunctionStatic(int x, int y) static;
 
+    void privateFunctionInline(int x, int y) {
+	// do stuff
+    };
+
+    public:
+    class pubClassAfterFunc {
+	int x;
+    };
 
 };
 
 
+void globalFuncDec(int arg1, int arg2) static {
+    // Stuff
+}
 
 
+void globalFuncDef(int arg1, int arg2) static {
+    // Stuff
+}
 
 
 
